@@ -1,0 +1,20 @@
+# Node
+node_modules
+.env
+.env.local
+
+# Prisma
+prisma/dev.db
+prisma/migrations
+
+# Builds e caches
+dist
+build
+.next
+out
+.turbo
+
+# Logs e temporários
+*.log
+.DS_Store
+Thumbs.db

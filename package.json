@@ -1,0 +1,21 @@
+{
+  "name": "pdv-estoque-saas",
+  "version": "1.0.0",
+  "description": "gestão de estoque com métricas Facebook e Yampi",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w apps/backend",
+    "dev:frontend": "npm run dev -w apps/frontend",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["pdv", "estoque", "saas", "nodejs", "react"],
+  "author": "King",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
