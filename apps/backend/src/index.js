@@ -497,7 +497,68 @@ cron.schedule('0 4 * * *', async () => {
 // }, { timezone: "America/Sao_Paulo" });
 
 // ========================================================
+// ========================================================
+// ROTA PARA SINCRO DE MÉTRICAS DO INSTAGRAM ADS (FACEBOOK ADS)
+// ========================================================
 
+// Função para sincronizar métricas
+async function syncInstagramMetrics() {
+  console.log('Iniciando sync de métricas Instagram Ads...');
+
+  const ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
+  const AD_ACCOUNT_ID = process.env.FACEBOOK_AD_ACCOUNT_ID;
+
+  if (!ACCESS_TOKEN || !AD_ACCOUNT_ID) {
+    console.error('Credenciais Facebook Ads não encontradas no .env');
+    return;
+  }
+
+  try {
+    const response = await axios.get(`https://graph.facebook.com/v20.0/${AD_ACCOUNT_ID}/insights`, {
+      params: {
+        access_token: ACCESS_TOKEN,
+        fields: 'campaign_name,adset_name,ad_name,impressions,reach,clicks,spend,inline_link_clicks,cpm,cpc,ctr,objective,date_start,date_stop',
+        date_preset: 'this_year',  // todo o historico (pode mudar para 'last_7d', 'this_month')
+        level: 'ad',  // pode mudar para 'campaign' ou 'adset'
+        time_increment: '1',  // dados por dia
+      },
+    });
+
+    const metrics = response.data.data || [];
+
+    // Salva cada métrica no banco (model Metric)
+    for (const metric of metrics) {
+      await prisma.metric.create({
+        data: {
+          type: 'instagram_ads',
+          data: metric,
+          date: new Date(metric.date_start || new Date()),
+          tenantId: "3ed33a32-9759-48fe-be2f-99dadb1dc7b0",
+        },
+      });
+    }
+
+    console.log(`Sync Instagram Ads concluída: ${metrics.length} métricas capturadas`);
+  } catch (error) {
+    console.error('Erro na sync Instagram Ads:', error.response?.data || error.message);
+  }
+}
+
+// Rota manual para testar (GET /sync-instagram-metrics)
+app.get('/sync-instagram-metrics', async (req, res) => {
+  try {
+    await syncInstagramMetrics();
+    res.status(200).json({ message: 'Sincronização de métricas Instagram Ads manual concluída' });
+  } catch (error) {
+    res.status(500).json({ error: 'Falha na sync Instagram Ads', details: error.message });
+  }
+});
+
+// Cron automático (todo dia às 08:00)
+cron.schedule('0 8 * * *', async () => {
+  console.log('🔄 [CRON] Sync Instagram Ads às 08:00');
+  await syncInstagramMetrics();
+}, { timezone: "America/Sao_Paulo" });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Servidor back-end rodando na porta ${PORT}`);
