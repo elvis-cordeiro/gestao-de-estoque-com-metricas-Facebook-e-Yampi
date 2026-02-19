@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url = env("DATABASE_URL") ← REMOVA ou COMENTE essa linha (como você já fez)
+}
+
+// Tabela principal: Loja/Cliente (multi-tenant)
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   // Nome da loja (ex: "Camisetas King")
+  email     String   @unique
+  plan      String?  // "basico", "pro", etc. (para assinatura)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products       Product[]
+  sales          Sale[]
+  metrics        Metric[]
+  stockMovements StockMovement[]
+}
+
+// Produtos (camisetas, calçados, etc.) — atualizado para sync Yampi
+model Product {
+  id          String   @id @default(uuid()) @db.Uuid
+  externalId  String?  @unique  // ID original da Yampi (ex: 38506379) — chave para evitar duplicatas
+  name        String
+  description String?
+  costPrice   Decimal @db.Decimal(10, 2) @default(0)
+  sellPrice   Decimal  @db.Decimal(10, 2) // Preço de venda (price_discount ou price_sale da Yampi)
+  stock       Int      @default(0)
+  size        String?  // "P", "M", "G", "38", etc. (se tiver variação)
+  color       String?
+  slug        String?          // Slug da Yampi (ex: "nike-tn-air-max-plus")
+  externalSku String?  @unique  // SKU da Yampi (ex: "VD3X4RC9P")
+  images      String[]         // Array de URLs das imagens (large preferencial)
+  lastSyncedAt DateTime?       // Data da última sincronização com Yampi
+
+  tenantId    String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  salesItems     SaleItem[]
+  stockMovements StockMovement[]
+}
+
+// Vendas / PDV
+model Sale {
+  id        String   @id @default(uuid()) @db.Uuid
+  total     Decimal  @db.Decimal(10, 2)
+  date      DateTime @default(now())
+  tenantId  String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  externalId     String?   @unique   // ID da Yampi para evitar duplicatas
+  customerName   String?
+  customerEmail  String?
+  status         String?   // "paid", "shipped", etc.
+  externalItems  Json?     // guarda itens da Yampi como backup
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  SaleItem[]
+}
+
+// Itens da venda (para calcular lucro, etc.)
+model SaleItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  quantity    Int
+  priceAtSale Decimal @db.Decimal(10, 2) // Preço no momento da venda
+
+  saleId    String @db.Uuid
+  productId String @db.Uuid
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+// Movimentações de estoque (entradas, saídas, ajustes)
+model StockMovement {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String   // "entrada", "saida", "ajuste"
+  quantity  Int
+  reason    String?  // "Venda", "Compra fornecedor", "Perda"
+  date      DateTime @default(now())
+
+  productId String @db.Uuid
+  tenantId  String @db.Uuid
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Métricas importadas (Facebook Ads + Yampi)
+model Metric {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String   // "facebook_campaign", "yampi_visits", "yampi_sales"
+  data      Json     // Armazena o JSON bruto da API
+  date      DateTime
+  tenantId  String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
