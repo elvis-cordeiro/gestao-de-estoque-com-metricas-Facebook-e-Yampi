@@ -475,12 +475,6 @@ cron.schedule('0 4 * * *', async () => {
   await syncYampiOrders();
 }, { timezone: "America/Sao_Paulo" });
 
-// Cron automático para Umami: teste a cada 5 minutos (para verificar agora)
-// Quando ok, mude para '0 7 * * *' (todo dia às 07:00)
-cron.schedule('*/5 * * * *', async () => {
-  console.log('🔄 [TESTE] Sync Umami a cada 5 min às', new Date().toLocaleString('pt-BR'));
-  await syncUmamiVisits();
-}, { timezone: "America/Sao_Paulo" });
 
 // Teste rápido (comente depois)
 // cron.schedule('*/5 * * * *', async () => {
@@ -640,66 +634,6 @@ app.get('/sales', async (req, res) => {
     console.error('Erro ao listar vendas:', error.message || error);
     res.status(500).json({ error: 'Erro ao listar vendas', details: error.message });
   }
-});
-// ========================================================
-// NOVA ROTA: Sync de visitas do site via Umami Analytics
-// ========================================================
-
-// Função para sincronizar métricas do Umami usando Basic Auth (admin:umami)
-async function syncUmamiVisits() {
-  console.log('Iniciando sync de visitas do site via Umami (Basic Auth)...');
-
-  const API_URL = process.env.UMAMI_API_URL;
-  const WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
-
-  if (!API_URL || !WEBSITE_ID) {
-    console.error('Credenciais Umami não encontradas no .env');
-    return;
-  }
-
-  try {
-    // Basic Auth: admin:umami em Base64 correto
-    const statsResponse = await axios.get(`${API_URL}/websites/${WEBSITE_ID}/stats`, {
-      headers: {
-        'Authorization': 'Basic YWRtaW46dW1hbWk='
-      },
-      params: {
-        startAt: Date.now() - 7 * 24 * 60 * 60 * 1000,  // últimos 7 dias (em ms)
-        endAt: Date.now(),
-      },
-    });
-
-    const stats = statsResponse.data;
-
-    // Salva no banco (usa sua model Metric)
-    await prisma.metric.create({
-      data: {
-        type: 'umami_visits',
-        data: stats,
-        date: new Date(),
-        tenantId: "3ed33a32-9759-48fe-be2f-99dadb1dc7b0",
-      },
-    });
-
-    console.log(`Sync Umami concluída: ${stats.visits || 0} visitas, ${stats.uniques || 0} usuários únicos`);
-  } catch (error) {
-    console.error('Erro na sync Umami:', error.response?.data || error.message);
-  }
-}
-
-// Rota manual para sync (GET /sync-umami-visits)
-app.get('/sync-umami-visits', async (req, res) => {
-  try {
-    await syncUmamiVisits();
-    res.status(200).json({ message: 'Sincronização de visitas Umami manual concluída' });
-  } catch (error) {
-    res.status(500).json({ error: 'Falha na sync Umami', details: error.message });
-  }
-});
-
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
 });
 
 // Rota para atualizar um produto (PUT /products/:id)
