@@ -547,8 +547,18 @@ async function syncInstagramMetrics() {
 // Rota manual para testar (GET /sync-instagram-metrics)
 app.get('/sync-instagram-metrics', async (req, res) => {
   try {
-    await syncInstagramMetrics();
-    res.status(200).json({ message: 'Sincronização de métricas Instagram Ads manual concluída' });
+    await syncInstagramMetrics(); // executa a sincronização
+
+    // Busca as métricas mais recentes salvas no banco
+    const latestMetrics = await prisma.metric.findFirst({
+      where: { type: 'instagram_ads' },
+      orderBy: { date: 'desc' },
+    });
+
+    res.status(200).json({
+      message: 'Sincronização de métricas Instagram Ads manual concluída',
+      metrics: latestMetrics ? latestMetrics.data : [], // retorna o array real de métricas
+    });
   } catch (error) {
     res.status(500).json({ error: 'Falha na sync Instagram Ads', details: error.message });
   }

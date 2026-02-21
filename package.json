@@ -1,36 +1,19 @@
 {
-  "name": "pdv-estoque-saas",
+  "name": "gestao-estoque-root",
   "version": "1.0.0",
-  "description": "gestão de estoque com métricas Facebook e Yampi",
   "private": true,
-  "type": "module",
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
-    "dev:backend": "npm run dev -w apps/backend",
-    "dev:frontend": "npm run dev -w apps/frontend",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"cd apps/backend && npm run dev\" \"cd apps/frontend-gestao-estoque && npm run dev\"",
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:frontend": "cd apps/frontend-gestao-estoque && npm run dev",
+    "build": "cd apps/backend && npm run build && cd ../frontend-gestao-estoque && npm run build"
   },
-  "keywords": [
-    "pdv",
-    "estoque",
-    "saas",
-    "nodejs",
-    "react"
-  ],
-  "author": "King",
-  "license": "ISC",
   "devDependencies": {
-    "concurrently": "^9.0.1",
-    "prisma": "^7.3.0"
-  },
-  "dependencies": {
-    "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.3.0",
-    "axios": "^1.13.5",
-    "node-cron": "^4.2.1",
-    "pg": "^8.18.0"
+    "concurrently": "^8.2.2"
   }
 }
+  
+

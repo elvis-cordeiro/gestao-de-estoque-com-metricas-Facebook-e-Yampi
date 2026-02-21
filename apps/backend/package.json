@@ -1,20 +1,25 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Back-end API para gestão de estoque e métricas",
-  "main": "src/index.js",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js"
   },
   "dependencies": {
-    "@prisma/client": "^7.3.0",
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^7.4.1",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "eslint": "^4.0.0",
+    "eslint-config-next": "^12.0.4",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.2.1",
+    "prisma": "^6.19.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
