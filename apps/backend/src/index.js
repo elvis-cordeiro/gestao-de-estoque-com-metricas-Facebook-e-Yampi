@@ -68,7 +68,14 @@ async function syncYampiProducts() {
         },
       });
 
-      const productsPage = response.data.data || [];
+      // Verificação crucial para evitar o erro "map is not a function"
+      if (!response.data || !response.data.data || !Array.isArray(response.data.data)) {
+        console.error('Resposta da Yampi não é array válido:', response.data);
+        errors.push({ page, error: 'Formato de resposta inválido da Yampi' });
+        break; // para evitar loop infinito
+      }
+
+      const productsPage = response.data.data;
       const meta = response.data.meta?.pagination;
       if (meta) {
         totalPages = meta.total_pages || 1;
@@ -476,19 +483,6 @@ cron.schedule('0 4 * * *', async () => {
 }, { timezone: "America/Sao_Paulo" });
 
 
-// Teste rápido (comente depois)
-// cron.schedule('*/5 * * * *', async () => {
-//   console.log('🔄 [TESTE] Sync Clarity a cada 5 min');
-//   await syncClarityVisits();
-// }, { timezone: "America/Sao_Paulo" });
-// Desconectar ao fechar o servidor
-
-// Teste rápido (comente depois)
-// cron.schedule('*/5 * * * *', async () => {
-//   console.log('🔄 [TESTE] Sync vendas a cada 5 min');
-//   await syncYampiOrders();
-// }, { timezone: "America/Sao_Paulo" });
-
 // ==================== TESTE RÁPIDO (COMENTE DEPOIS) ====================
 // Para testar a cada 5 minutos durante desenvolvimento:
 // cron.schedule('*/5 * * * *', async () => {
@@ -569,10 +563,7 @@ cron.schedule('0 8 * * *', async () => {
   console.log('🔄 [CRON] Sync Instagram Ads às 08:00');
   await syncInstagramMetrics();
 }, { timezone: "America/Sao_Paulo" });
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Servidor back-end rodando na porta ${PORT}`);
-});
+
 // ========================================================
 // NOVA ROTA: Sincronizar vendas/pedidos da Yampi (GET /sync-yampi-orders)
 // ========================================================
@@ -828,4 +819,36 @@ app.post('/sales', async (req, res) => {
     console.error('Erro ao registrar venda:', error);
     res.status(500).json({ error: 'Erro ao registrar venda', details: error.message });
   }
+});
+// ... suas rotas anteriores (ex: sync-instagram-metrics, products, sales, etc.)
+
+// Nova rota para puxar insights ao vivo do Clarity
+app.get('/clarity/live-insights', async (req, res) => {
+  try {
+    const response = await axios.get('https://www.clarity.ms/export-data/api/v1/project-live-insights', {
+      params: {
+        projectId: process.env.CLARITY_PROJECT_ID,
+      },
+      headers: {
+        'Authorization': `Bearer ${process.env.CLARITY_API_KEY}`,
+      },
+    });
+
+    res.status(200).json(response.data);
+  } catch (error) {
+    console.error('Erro ao puxar insights do Clarity:', error.message);
+    res.status(500).json({ 
+      error: 'Falha ao carregar insights do Clarity',
+      details: error.message 
+    });
+  }
+});
+
+// ... continue com as outras rotas se tiver (ex: 404, app.listen)
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada' });
+});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Servidor back-end rodando na porta ${PORT}`);
 });
