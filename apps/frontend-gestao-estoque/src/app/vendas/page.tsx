@@ -3,14 +3,11 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 
+// Tipagem flexível (aceita qualquer campo que venha do backend)
 interface Sale {
   id: string;
   createdAt: string;
-  total: number | string;  // aceita string ou number (mais seguro)
-  status: string;
-  customerName?: string;
-  itemsCount?: number;
-  // adicione mais campos se o backend retornar (ex: paymentMethod, profit)
+  [key: string]: any; // permite qualquer outro campo (total, total_amount, status, etc.)
 }
 
 export default function Vendas() {
@@ -20,15 +17,14 @@ export default function Vendas() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Carrega vendas ao abrir a página
   useEffect(() => {
     const fetchSales = async () => {
       try {
         const response = await api.get('/sales?tenantId=3ed33a32-9759-48fe-be2f-99dadb1dc7b0');
-        setSales(response.data); // assumindo array direto
+        setSales(response.data || []);
       } catch (err) {
         setError('Erro ao carregar vendas');
-        console.error(err);
+        console.error('Erro no fetch de vendas:', err);
       } finally {
         setLoading(false);
       }
@@ -37,22 +33,20 @@ export default function Vendas() {
     fetchSales();
   }, []);
 
-  // Função do botão "Sincronizar Vendas"
   const syncSales = async () => {
     setSyncLoading(true);
     setSyncMessage(null);
     setError(null);
 
     try {
-      const response = await api.get('/sync-yampi'); // ← rota que atualiza vendas também
+      const response = await api.get('/sync-yampi');
       setSyncMessage(response.data.message || 'Sincronização de vendas concluída!');
 
-      // Recarrega a lista
       const refreshed = await api.get('/sales?tenantId=3ed33a32-9759-48fe-be2f-99dadb1dc7b0');
-      setSales(refreshed.data);
+      setSales(refreshed.data || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Falha ao sincronizar vendas');
-      console.error(err);
+      setError(err.response?.data?.error || err.message || 'Falha ao sincronizar vendas');
+      console.error('Erro no sync de vendas:', err);
     } finally {
       setSyncLoading(false);
     }
@@ -74,9 +68,7 @@ export default function Vendas() {
           onClick={syncSales}
           disabled={syncLoading}
           className={`px-6 py-3 rounded-lg text-white font-medium transition-colors ${
-            syncLoading 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-green-600 hover:bg-green-700'
+            syncLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
           }`}
         >
           {syncLoading ? 'Sincronizando...' : 'Sincronizar Vendas'}
@@ -113,27 +105,27 @@ export default function Vendas() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sales.map((sale) => {
-                // Converte total para número (tenta vários nomes comuns + fallback 0)
-                const totalRaw = sale.total || sale.total_amount || sale.amount || sale.grand_total || sale.value || 0;
-                const total = parseFloat(totalRaw) || 0;
+              {sales.map((sale, index) => {
+                // Total: tenta vários nomes comuns + fallback 0
+                const totalRaw = sale.total ?? sale.total_amount ?? sale.amount ?? sale.grand_total ?? sale.value ?? 0;
+                const total = parseFloat(totalRaw.toString()) || 0;
 
                 return (
-                  <tr key={sale.id} className="hover:bg-gray-50">
+                  <tr key={sale.id || index} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(sale.createdAt).toLocaleDateString('pt-BR')}
+                      {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString('pt-BR') : 'Data desconhecida'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {sale.id.substring(0, 8)}...
+                      {sale.id ? sale.id.substring(0, 8) + '...' : 'ID desconhecido'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {sale.customerName || sale.customer_name || 'Cliente não identificado'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                      R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {sale.itemsCount || sale.quantity || sale.items?.length || '?'}
+                      {sale.itemsCount ?? sale.quantity ?? sale.items?.length ?? '?'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -141,9 +133,7 @@ export default function Vendas() {
                         sale.status === 'pending' || sale.status === 'Pendente' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-red-100 text-red-800'
                       }`}>
-                        {sale.status === 'paid' ? 'Pago' :
-                         sale.status === 'pending' ? 'Pendente' :
-                         sale.status || 'Desconhecido'}
+                        {sale.status || 'Desconhecido'}
                       </span>
                     </td>
                   </tr>
